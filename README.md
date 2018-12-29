@@ -22,8 +22,8 @@ Es una sencilla estructura para un proyecto web estático.
 1. Cree un fork de este repositorio y clonelo en local (o descargue este repositorio por zip).
 2. Ejecute en terminal `npm install -g gulp-cli`
 3. Ejecute `npm install` (asegurese de tener npm actualizado y Nodejs en v6 como minimo)
-4. Ejecute `gulp dev` para trabajar e desarrollo
-5. Ejecute `gulp build` para compilar sus archivos para produccion
+4. Actualice la variable `env` para cambiar el entorno desarrollo a producción
+5. Ejecute `gulp` para iniciar las tareas en gulpfile.
 6. Disfrute
 
 ## Estructura
@@ -35,4 +35,4 @@ Es una sencilla estructura para un proyecto web estático.
 5. Para Js, la carpeta `modules` contiene los módulos que serán importados desde `index.js`
 
 Siéntase libre de usarlo y de reportar cualquier problema que encuentre o sugerencia que tenga.
-EDboilerplate es gratis, open source y de la comunidad para la comunidad.
+mySecondWebPage es gratis, open source y de la comunidad para la comunidad.

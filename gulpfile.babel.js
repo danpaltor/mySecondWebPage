@@ -14,10 +14,13 @@ import buffer from 'vinyl-buffer'
 import minify from 'gulp-minify'
 import imagemin from 'gulp-imagemin'
 import sitemap from 'gulp-sitemap'
-import cachebust from 'gulp-cache-bust'
-import tildeImporter from 'node-sass-tilde-importer'
 
 const server = browserSync.create()
+
+const production = false
+const env = production ? 'prod' : 'dev'
+const srcJs = production ? '.js' : '-min.js'
+const minJs = production ? '-min.js' : '.js'
 
 const postcssPlugins = [
   cssnano({
@@ -30,156 +33,103 @@ const postcssPlugins = [
   })
 ]
 
-gulp.task('styles-dev', () => {
-  gulp.src('./src/scss/styles.scss')
-    .pipe(sourcemaps.init({ loadMaps : true}))
-    .pipe(plumber())
-    .pipe(sass({
-      importer: tildeImporter,
-      outputStyle: 'expanded'
-    }))
-    .pipe(postcss([
-      autoprefixer({
-        browsers: '> 1%, last 2 versions, Firefox ESR, Opera 12.1'
-      })
-    ]))
-    .pipe(sourcemaps.write('.'))
-    .pipe(gulp.dest('./public/css/'))
-    .pipe(server.stream({match: '**/*.css'}))
+const sassOptions = env === 'dev' ? {
+  includePaths: ['node_modules'],
+  sourceComments: true,
+  outputStyle: 'expanded'
+} : {
+  includePaths: ['node_modules'],
+}
+
+gulp.task('styles', () => {
+  return env === 'dev'
+    ? gulp.src('./dev/scss/styles.scss')
+      .pipe(plumber())
+      .pipe(sass(sassOptions))
+      .pipe(gulp.dest('./public/assets/css/'))
+      .pipe(server.stream({match: '**/*.css'}))
+    : gulp.src('./dev/scss/styles.scss')
+      .pipe(plumber())
+      .pipe(sass(sassOptions))
+      .pipe(postcss(postcssPlugins))
+      .pipe(gulp.dest('./public/assets/css'))
+      .pipe(server.stream({match: '**/*.css'}))
 })
 
-gulp.task('styles-build', () => {
-  gulp.src('./src/scss/styles.scss')
-    .pipe(plumber())
-    .pipe(sass({
-      importer: tildeImporter
-    }))
-    .pipe(postcss(
-      [
-        cssnano({
-          core: true,
-          zindex: false,
-          autoprefixer: {
-            add: true,
-            browsers: '> 1%, last 2 versions, Firefox ESR, Opera 12.1'
-          }
-        })
-      ]
-    ))
-    .pipe(gulp.dest('./public/css/'))
-})
-
-gulp.task('pug-dev', () =>
-  gulp.src('./src/pug/pages/**/*.pug')
+gulp.task('pug', () =>
+  gulp.src('./dev/pug/pages/**/*.pug')
     .pipe(plumber())
     .pipe(pug({
-      pretty: true,
-      basedir: './src/pug'
+      pretty: !production,
+      basedir: './dev/pug'
     }))
     .pipe(gulp.dest('./public'))
 )
 
-gulp.task('pug-build', () =>
-  gulp.src('./src/pug/pages/**/*.pug')
-    .pipe(plumber())
-    .pipe(pug({
-      basedir: './src/pug'
-    }))
-    .pipe(gulp.dest('./public'))
-)
-
-gulp.task('scripts-dev', () =>
-  browserify('./src/js/index.js')
+gulp.task('scripts', () =>
+  browserify('./dev/js/index.js')
     .transform(babelify, {
       global: true // permite importar desde afuera (como node_modules)
     })
     .bundle()
-    .on('error', function (err) {
-      console.error(err)
+    .on('error', function(err){
+      console.error(err);
       this.emit('end')
     })
     .pipe(source('scripts.js'))
     .pipe(buffer())
     .pipe(minify({
       ext: {
-        src: '-min.js',
-        min: '.js'
+        src: srcJs,
+        min: minJs
       }
     }))
-    .pipe(sourcemaps.init({loadMaps: true}))
+    .pipe(sourcemaps.init({ loadMaps: true }))
     .pipe(sourcemaps.write('.'))
-    .pipe(gulp.dest('./public/js'))
+    .pipe(gulp.dest('./public/assets/js'))
 )
 
-gulp.task('scripts-build', () =>
-  browserify('./src/js/index.js')
-    .transform(babelify, {
-      global: true // permite importar desde afuera (como node_modules)
-    })
-    .bundle()
-    .on('error', function (err) {
-      console.error(err)
-      this.emit('end')
-    })
-    .pipe(source('scripts.js'))
-    .pipe(buffer())
-    .pipe(minify({
-      ext: {
-        src: '.js',
-        min: '-min.js'
-      }
-    }))
-    .pipe(sourcemaps.init({loadMaps: true}))
-    .pipe(sourcemaps.write('.'))
-    .pipe(gulp.dest('./public/js'))
-)
-
-gulp.task('images-build', () => {
-  gulp.src('./src/img/**/**')
-    .pipe(imagemin([
-      imagemin.gifsicle({interlaced: true}),
-      imagemin.jpegtran({progressive: true}),
-      imagemin.optipng({optimizationLevel: 5}),
-      imagemin.svgo()
-    ]))
-    .pipe(gulp.dest('./public/assets/img'))
-})
-
-gulp.task('images-dev', () => {
-  gulp.src('./src/img/**/**')
-    .pipe(gulp.dest('./public/assets/img'))
-})
+gulp.task('images', () => {
+  gulp.src('./dev/img/**/**')
+   .pipe(imagemin([
+    imagemin.gifsicle({interlaced: true}),
+    imagemin.jpegtran({progressive: true}),
+    imagemin.optipng({optimizationLevel: 5}),
+    imagemin.svgo()
+   ]))
+   .pipe(gulp.dest('./public/assets/img'))
+ });
 
 gulp.task('sitemap', () => {
   gulp.src('./public/**/*.html', {
     read: false
   })
     .pipe(sitemap({
-      siteUrl: 'https://example.com' // remplazar por tu dominio
+      siteUrl: 'https://lima2018.ed.team'
     }))
     .pipe(gulp.dest('./public'))
 })
 
-gulp.task('dev', ['styles-dev', 'pug-dev', 'scripts-dev', 'images-dev'], () => {
+ gulp.task('manifest', () => {
+   gulp.src('./dev/manifest.json')
+   .pipe(gulp.dest('./public'))
+ })
+
+ gulp.task('worker', () => {
+   gulp.src('./dev/service-worker.js').pipe(gulp.dest('./public'))
+ })
+
+gulp.task('default', ['styles', 'pug', 'images','scripts', 'manifest', 'worker'], () => {
   server.init({
     server: {
       baseDir: './public'
     }
   })
 
-  watch('./src/scss/**/**', () => gulp.start('styles-dev'))
-  watch('./src/js/**/**', () => gulp.start('scripts-dev', server.reload))
-  watch('./src/pug/**/**', () => gulp.start('pug-dev', server.reload))
-  watch('./src/img/**/**', () => gulp.start('images-dev'))
-})
-
-gulp.task('cache', () => {
-  gulp.src('./public/**/*.html')
-    .pipe(cachebust({
-      type: 'timestamp'
-    }))
-    .pipe(gulp.dest('./public'))
-})
-
-
-gulp.task('build', ['styles-build', 'pug-build', 'scripts-build', 'images-build', 'cache', 'sitemap'])
+  watch('./dev/scss/**/**', () => gulp.start('styles'))
+  watch('./dev/js/**/**', () => gulp.start('scripts',server.reload) )
+  watch('./dev/pug/**/**', () => gulp.start('pug', server.reload))
+  watch('./dev/img/**/**', () => gulp.start('images'))
+  watch('./dev/manifest.json', () => gulp.start('manifest'))
+  watch('./dev/service-worker.js', () => gulp.start('worker'))
+});
